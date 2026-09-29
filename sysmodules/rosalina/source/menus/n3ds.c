@@ -32,11 +32,14 @@
 #include "menu.h"
 #include "n3ds.h"
 #include "draw.h"
+#include "utils.h"
+#include "csvc.h"
 
 static char clkRateBuf[128 + 1];
 
 static QtmCalibrationData lastQtmCal = {0};
 static bool qtmCalRead = false;
+static bool isPrallaxInverted = false;
 
 Menu N3DSMenu = {
     "New 3DS menu",
@@ -46,6 +49,7 @@ Menu N3DSMenu = {
         { "Temporarily disable Super-Stable 3D", METHOD, .method = &N3DSMenu_ToggleSs3d, .visibility = &N3DSMenu_CheckNotN2dsXl },
         { "Test parallax barrier positions", METHOD, .method = &N3DSMenu_TestBarrierPositions, .visibility = &N3DSMenu_CheckNotN2dsXl },
         { "Super-Stable 3D calibration", METHOD, .method = &N3DSMenu_Ss3dCalibration, .visibility = &N3DSMenu_CheckNotN2dsXl },
+        { "Invert parallax barrier [Disabled]", METHOD, .method = &N3DSMenu_InvertParallax},
         {},
     }
 };
@@ -87,6 +91,13 @@ void N3DSMenu_UpdateStatus(void)
             item->title = "Temporarily disable Super-Stable 3D";
         else
             item->title = "Temporarily enable Super-Stable 3D";
+
+        MenuItem *item2 = &N3DSMenu.items[5];
+
+        if (!isPrallaxInverted)
+            item2->title = "Invert parallax barrier [Disabled]";
+        else
+            item2->title = "Invert parallax barrier [Enabled]";
     }
 }
 
@@ -289,4 +300,53 @@ void N3DSMenu_Ss3dCalibration(void)
 
         Draw_Unlock();
     } while(!menuShouldExit && !(pressed & KEY_B));
+}
+
+
+// So this is a particular function ported on rosalina menu based on my ips patch found here: https://github.com/Ghibbi64/3DS-parallax-swap
+// I tought it would have been cool if it was avaiable as an option here
+void N3DSMenu_InvertParallax(void){
+    N3DSMenu_UpdateStatus();
+
+    //memory editing taken from process_list.c
+    Handle processHandle;
+    Result res = OpenProcessByName("gsp", &processHandle);
+
+    if(R_SUCCEEDED(res)){
+        u32 codeStartAddress;
+        u32 codeDestAddress;
+        u32 codeTotalSize;
+        s64 textStartAddress, textTotalRoundedSize, rodataTotalRoundedSize, dataTotalRoundedSize;
+        svcGetProcessInfo(&textTotalRoundedSize, processHandle, 0x10002);
+        svcGetProcessInfo(&rodataTotalRoundedSize, processHandle, 0x10003);
+        svcGetProcessInfo(&dataTotalRoundedSize, processHandle, 0x10004);
+        svcGetProcessInfo(&textStartAddress, processHandle, 0x10005);
+        codeTotalSize = (u32)(textTotalRoundedSize + rodataTotalRoundedSize + dataTotalRoundedSize);
+        codeStartAddress = (u32)textStartAddress; //should be 0x00100000, rarely 0x14000000
+        codeDestAddress = 0x00100000;
+
+        res = svcMapProcessMemoryEx(CUR_PROCESS_HANDLE, codeDestAddress, processHandle, codeStartAddress, codeTotalSize, 0);
+
+        if(R_SUCCEEDED(res)){
+            u8 *ptr_l = (u8 *)(codeDestAddress + (0x0010C6BD - codeStartAddress));
+            u8 *ptr_r = (u8 *)(codeDestAddress + (0x0010C6C1 - codeStartAddress));
+
+            if(!isPrallaxInverted){ //invert
+                *ptr_l = 0x00;
+                *ptr_r = 0x50;
+            }else{ //revert
+                *ptr_l = 0x50;
+                *ptr_r = 0x00;
+            }
+
+            if(R_SUCCEEDED(res))
+                svcUnmapProcessMemoryEx(CUR_PROCESS_HANDLE, codeDestAddress, codeTotalSize);
+
+            svcCloseHandle(processHandle);
+
+            isPrallaxInverted = !isPrallaxInverted;
+        }
+    }
+
+    N3DSMenu_UpdateStatus();
 }

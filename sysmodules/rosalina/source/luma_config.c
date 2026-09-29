@@ -258,6 +258,7 @@ Result LumaConfig_SaveSettings(void)
     configData.autobootTwlTitleId = autobootTwlTitleId;
     configData.autobootCtrAppmemtype = autobootCtrAppmemtype;
 
+
     size_t n = LumaConfig_SaveLumaIniConfigToStr(inibuf, &configData);
 
     // FIXME: this is UB we should port snprintf sometime (as well as fix other tech debt in Rosalina)
