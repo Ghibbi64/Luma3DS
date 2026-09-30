@@ -94,7 +94,7 @@ void initSystem(void)
     lastNtpTzOffset = (s16)out;
 
     svcGetSystemInfo(&out, 0x10001, 3);
-    isPrallaxInverted = (bool)out;
+    isStereoInverted = (bool)out;
 
     for(res = 0xD88007FA; res == (Result)0xD88007FA; svcSleepThread(500 * 1000LL))
     {
@@ -277,8 +277,8 @@ int main(void)
     MyThread *errDispThread = errDispCreateThread();
     bootdiagCreateThread();
 
-    if (isPrallaxInverted)
-        TaskRunner_RunTask(N3DSMenu_StartupApplyInvertedParallax, NULL, 0);
+    if (isStereoInverted)
+        TaskRunner_RunTask(N3DSMenu_StartupApplyinvertedStereo, NULL, 0);
 
     if (R_FAILED(ServiceManager_Run(services, notifications, NULL)))
         svcBreak(USERBREAK_PANIC);

@@ -177,7 +177,7 @@ Result GetSystemInfoHook(s64 *out, s32 type, s32 param)
                         *out = L2C_CTRL & 1;
                         break;
                     case 3: // parallax inverted
-                        *out = (s64)cfwInfo.invertedParallax;
+                        *out = (s64)cfwInfo.invertedStereo;
                         break;
                     default:
                         *out = 0;

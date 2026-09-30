@@ -30,7 +30,7 @@
 #include "menu.h"
 
 extern Menu N3DSMenu;
-extern bool isPrallaxInverted;
+extern bool isStereoInverted;
 
 bool N3DSMenu_CheckNotN2dsXl(void);
 
@@ -42,7 +42,7 @@ void N3DSMenu_ToggleSs3d(void);
 void N3DSMenu_TestBarrierPositions(void);
 void N3DSMenu_Ss3dCalibration(void);
 
-void N3DSMenu_InvertParallax(void);
-void N3DSMenu_StartupApplyInvertedParallax(void* arg);
-bool N3DSMenu_IsInvertedParallaxAvaiable();
-void N3DSMenu_ToggleInvertParallax();
+void N3DSMenu_InvertStereo(void);
+void N3DSMenu_StartupApplyinvertedStereo(void* arg);
+bool N3DSMenu_IsinvertedStereoAvaiable();
+void N3DSMenu_ToggleInvertStereo();

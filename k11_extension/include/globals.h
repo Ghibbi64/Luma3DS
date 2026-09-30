@@ -165,7 +165,7 @@ typedef struct CfwInfo
 
     u16 launchedPath[80+1];
 
-    bool invertedParallax;
+    bool invertedStereo;
 } CfwInfo;
 
 extern CfwInfo cfwInfo;

@@ -157,7 +157,7 @@ u32 installK11Extension(u8 *pos, u32 size, bool needToInitSd, u32 baseK11VA, u32
 
             u16 launchedPath[80+1];
 
-            bool invertedParallax;
+            bool invertedStereo;
         } info;
     };
 
@@ -234,7 +234,7 @@ u32 installK11Extension(u8 *pos, u32 size, bool needToInitSd, u32 baseK11VA, u32
     info->rosalinaMenuCombo = configData.rosalinaMenuCombo;
     info->pluginLoaderFlags = configData.pluginLoaderFlags;
     info->ntpTzOffetMinutes = configData.ntpTzOffetMinutes;
-    info->invertedParallax = configData.invertedParallax;
+    info->invertedStereo = configData.invertedStereo;
     info->topScreenFilter = configData.topScreenFilter;
     info->bottomScreenFilter = configData.bottomScreenFilter;
     info->autobootTwlTitleId = configData.autobootTwlTitleId;

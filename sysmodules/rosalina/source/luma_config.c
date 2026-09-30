@@ -54,7 +54,7 @@ typedef struct CfgData {
     u64 autobootTwlTitleId;
     u8 autobootCtrAppmemtype;
 
-    bool invertedParallax;
+    bool invertedStereo;
 } CfgData;
 
 bool saveSettingsRequest = false;
@@ -180,7 +180,7 @@ static size_t LumaConfig_SaveLumaIniConfigToStr(char *out, const CfgData *cfg)
         autobootModeStr,
 
         cfg->hbldr3dsxTitleId, rosalinaMenuComboStr, (int)(cfg->pluginLoaderFlags & 1),
-        (int)cfg->ntpTzOffetMinutes, (int)cfg->invertedParallax,
+        (int)cfg->ntpTzOffetMinutes, (int)cfg->invertedStereo,
 
         (int)cfg->topScreenFilter.cct, (int)cfg->bottomScreenFilter.cct,
         (int)cfg->topScreenFilter.colorCurveCorrection, (int)cfg->bottomScreenFilter.colorCurveCorrection,
@@ -260,7 +260,7 @@ Result LumaConfig_SaveSettings(void)
     configData.bottomScreenFilter = bottomScreenFilter;
     configData.autobootTwlTitleId = autobootTwlTitleId;
     configData.autobootCtrAppmemtype = autobootCtrAppmemtype;
-    configData.invertedParallax = isPrallaxInverted;
+    configData.invertedStereo = isStereoInverted;
 
 
     size_t n = LumaConfig_SaveLumaIniConfigToStr(inibuf, &configData);

@@ -35,15 +35,13 @@
 #include "utils.h"
 #include "csvc.h"
 
-#define FIRM_VERSION_11_17_0_50  0x0B110032u
-
 static char clkRateBuf[128 + 1];
 
 static QtmCalibrationData lastQtmCal = {0};
 static bool qtmCalRead = false;
-bool isPrallaxInverted = false;
+bool isStereoInverted = false;
 
-static char parallaxInvertedStatus[128 + 1];
+static char stereoInvertedStatus[128 + 1];
 
 Menu N3DSMenu = {
     "New 3DS menu",
@@ -53,7 +51,7 @@ Menu N3DSMenu = {
         { "Temporarily disable Super-Stable 3D", METHOD, .method = &N3DSMenu_ToggleSs3d, .visibility = &N3DSMenu_CheckNotN2dsXl },
         { "Test parallax barrier positions", METHOD, .method = &N3DSMenu_TestBarrierPositions, .visibility = &N3DSMenu_CheckNotN2dsXl },
         { "Super-Stable 3D calibration", METHOD, .method = &N3DSMenu_Ss3dCalibration, .visibility = &N3DSMenu_CheckNotN2dsXl },
-        { parallaxInvertedStatus, METHOD, .method = &N3DSMenu_ToggleInvertParallax, .visibility = &N3DSMenu_IsInvertedParallaxAvaiable },
+        { stereoInvertedStatus, METHOD, .method = &N3DSMenu_ToggleInvertStereo, .visibility = &N3DSMenu_IsinvertedStereoAvaiable },
         {},
     }
 };
@@ -76,7 +74,7 @@ void N3DSMenu_UpdateStatus(void)
 
     N3DSMenu.items[0].title = L2CacheEnabled ? "Disable L2 cache" : "Enable L2 cache";
     sprintf(clkRateBuf, "Set clock rate to %luMHz", clkRate != 268 ? 268 : (u32)higherClkRate);
-    sprintf(parallaxInvertedStatus, "Invert parallax barrier %s", isPrallaxInverted ? "[Enabled]" : "[Disabled]");
+    sprintf(stereoInvertedStatus, "Invert stereoscopic 3D %s", isStereoInverted ? "[Enabled]" : "[Disabled]");
 
     if (N3DSMenu_CheckNotN2dsXl())
     {
@@ -320,7 +318,7 @@ so you just need to swap them the moment the module is going to copy them into t
 (r2 for the left eye registry and r1 for the right eye registry).
 Only problem is that this memory address it tied to the last version of gsp, so for now i will put a firmware check
 */
-void N3DSMenu_InvertParallax(void){
+void N3DSMenu_InvertStereo(void){
     //assuming the it's not a new2dsxl at this point cause N3DSMenu_CheckNotN2dsXl() doesn't work at boot
     if((osGetFirmVersion() != SYSTEM_VERSION(2, 58, 0))) return;
 
@@ -347,7 +345,7 @@ void N3DSMenu_InvertParallax(void){
             u8 *ptr_l = (u8 *)(codeDestAddress + (0x0010C6BD - codeStartAddress));
             u8 *ptr_r = (u8 *)(codeDestAddress + (0x0010C6C1 - codeStartAddress));
 
-            if(isPrallaxInverted){
+            if(isStereoInverted){
                 //Apply the patch
                 *ptr_l = 0x00;
                 *ptr_r = 0x50;
@@ -365,14 +363,14 @@ void N3DSMenu_InvertParallax(void){
     N3DSMenu_UpdateStatus();
 }
 
-void N3DSMenu_ToggleInvertParallax(){
+void N3DSMenu_ToggleInvertStereo(){
 
-    isPrallaxInverted = !isPrallaxInverted;
-    N3DSMenu_InvertParallax();
+    isStereoInverted = !isStereoInverted;
+    N3DSMenu_InvertStereo();
 
 }
 
-void N3DSMenu_StartupApplyInvertedParallax(void* arg){
+void N3DSMenu_StartupApplyinvertedStereo(void* arg){
 
     (void)arg;
 
@@ -382,10 +380,10 @@ void N3DSMenu_StartupApplyInvertedParallax(void* arg){
         svcSleepThread(100 * 1000 * 1000LL);
     svcCloseHandle(h);
         
-    N3DSMenu_InvertParallax();
+    N3DSMenu_InvertStereo();
 }
 
-bool N3DSMenu_IsInvertedParallaxAvaiable(void)
+bool N3DSMenu_IsinvertedStereoAvaiable(void)
 {
     //TODO: find in which version the gsp module was updated for the last time to lower the system firm minumum version.
     return N3DSMenu_CheckNotN2dsXl() && (osGetFirmVersion() == SYSTEM_VERSION(2, 58, 0)); 
