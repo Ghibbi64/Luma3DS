@@ -278,7 +278,7 @@ int main(void)
     bootdiagCreateThread();
 
     if (isStereoInverted)
-        TaskRunner_RunTask(N3DSMenu_StartupApplyinvertedStereo, NULL, 0);
+        TaskRunner_RunTask(N3DSMenu_StartupApplyInvertedStereo, NULL, 0);
 
     if (R_FAILED(ServiceManager_Run(services, notifications, NULL)))
         svcBreak(USERBREAK_PANIC);

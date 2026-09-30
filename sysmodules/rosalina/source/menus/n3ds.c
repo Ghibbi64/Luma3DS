@@ -51,7 +51,7 @@ Menu N3DSMenu = {
         { "Temporarily disable Super-Stable 3D", METHOD, .method = &N3DSMenu_ToggleSs3d, .visibility = &N3DSMenu_CheckNotN2dsXl },
         { "Test parallax barrier positions", METHOD, .method = &N3DSMenu_TestBarrierPositions, .visibility = &N3DSMenu_CheckNotN2dsXl },
         { "Super-Stable 3D calibration", METHOD, .method = &N3DSMenu_Ss3dCalibration, .visibility = &N3DSMenu_CheckNotN2dsXl },
-        { stereoInvertedStatus, METHOD, .method = &N3DSMenu_ToggleInvertStereo, .visibility = &N3DSMenu_IsinvertedStereoAvaiable },
+        { stereoInvertedStatus, METHOD, .method = &N3DSMenu_ToggleInvertStereo, .visibility = &N3DSMenu_IsinvertedStereoAvailable },
         {},
     }
 };
@@ -298,8 +298,8 @@ void N3DSMenu_Ss3dCalibration(void)
     } while(!menuShouldExit && !(pressed & KEY_B));
 }
 
-/* This is a function ported on rosalina menu based on my ips patch to fix pseudoscopic vision on faulty top screen replacements (on NEW 3DSs)
-In general this problem is caused by a bad alignement in the parallax barrier of some top screen, that swaps the images that 
+/* This is a patch to correct pseudoscopic vision.
+In general this problem is caused by a bad alignement in the parallax barrier of some cheap top screen, that swaps the images that 
 goes to both the eyes, the right eye receives the "left eye image" and vice versa. This causes a really bad 3d effect with the depth
 inverted and in general a lot of discomfort.
 
@@ -311,22 +311,21 @@ like this
     0010c6bc 00 00 82 e5     str r0,[r2]
     0010c6c0 00 50 81 e5     str r5,[r1]
 
-(in this patch you can notice only 2 bytes really changes so i only touch them)
-
 at that point r5 should contain the address for the next left eye framebuffer and r0 the address for the right one,
 so you just need to swap them the moment the module is going to copy them into the lcd registry
 (r2 for the left eye registry and r1 for the right eye registry).
-Only problem is that this memory address it tied to the last version of gsp, so for now i will put a firmware check
+Only problem is that this memory address it tied to the last version of gsp, so we implemented many checks to prevent patching
+incompatible versions. 
 */
-void N3DSMenu_InvertStereo(void){
-    //assuming the it's not a new2dsxl at this point cause N3DSMenu_CheckNotN2dsXl() doesn't work at boot
-    if((osGetFirmVersion() != SYSTEM_VERSION(2, 58, 0))) return;
+void N3DSMenu_InvertStereo(bool state){
+
+    if (osGetFirmVersion() != SYSTEM_VERSION(2, 58, 0)) return;
 
     //memory editing taken from process_list.c
     Handle processHandle;
     Result res = OpenProcessByName("gsp", &processHandle);
 
-    if(R_SUCCEEDED(res)){
+    if (R_SUCCEEDED(res)){
         u32 codeStartAddress;
         u32 codeDestAddress;
         u32 codeTotalSize;
@@ -341,60 +340,56 @@ void N3DSMenu_InvertStereo(void){
 
         res = svcMapProcessMemoryEx(CUR_PROCESS_HANDLE, codeDestAddress, processHandle, codeStartAddress, codeTotalSize, 0);
 
-        if(R_SUCCEEDED(res)){
+        if (R_SUCCEEDED(res)){
             u32 *instr_l = (u32 *)(codeDestAddress + (0x0010C6BC - codeStartAddress));
             u32 *instr_r = (u32 *)(codeDestAddress + (0x0010C6C0 - codeStartAddress));
 
-            // First check if the store instruction are really the one i want to patch
+            // First check if the store instruction are really the one we want to patch
             bool isOriginal = (*instr_l == 0xE5825000 && *instr_r == 0xE5810000);
             bool isPatched  = (*instr_l == 0xE5820000 && *instr_r == 0xE5815000);
-            if(isOriginal || isPatched){
-                u8 *ptr_l = (u8 *)(codeDestAddress + (0x0010C6BD - codeStartAddress));
-                u8 *ptr_r = (u8 *)(codeDestAddress + (0x0010C6C1 - codeStartAddress));
+            if (isOriginal || isPatched){
 
-                if(isStereoInverted){
-                    //Apply the patch
-                    *ptr_l = 0x00;
-                    *ptr_r = 0x50;
-                }else{
-                    //Revert the patch
-                    *ptr_l = 0x50;
-                    *ptr_r = 0x00;
-                }
-            }else{
-                isStereoInverted = !isStereoInverted;
+                *instr_l = state ? 0xE5820000 : 0xE5825000;
+                *instr_r = state ? 0xE5815000 : 0xE5810000;
+
+                isStereoInverted = state;
+
             }
             svcUnmapProcessMemoryEx(CUR_PROCESS_HANDLE, codeDestAddress, codeTotalSize);
-
         }
         svcCloseHandle(processHandle);
     }
+
     N3DSMenu_UpdateStatus();
 }
 
 void N3DSMenu_ToggleInvertStereo(){
 
-    isStereoInverted = !isStereoInverted;
-    N3DSMenu_InvertStereo();
+    if (N3DSMenu_IsinvertedStereoAvailable()) N3DSMenu_InvertStereo(!isStereoInverted);
 
 }
 
-void N3DSMenu_StartupApplyinvertedStereo(void* arg){
+void N3DSMenu_StartupApplyInvertedStereo(void* arg){
 
     (void)arg;
 
-    // wait for gsp? assume it will be loaded by now (it should?)
+    /* We're not using N3DSMenu_IsinvertedStereoAvailable cause N3DSMenu_CheckNotN2dsXl is not available at startup, still
+    it should be enough given all the other checks inside N3DSMenu_InvertStereo
+    */
+    if (osGetFirmVersion() != SYSTEM_VERSION(2, 58, 0)) return;
+
+    // wait for gsp to be loaded in memory
     Handle h;
     while (R_FAILED(OpenProcessByName("gsp", &h)))
         svcSleepThread(100 * 1000 * 1000LL);
     svcCloseHandle(h);
-        
-    N3DSMenu_InvertStereo();
+    
+    N3DSMenu_InvertStereo(isStereoInverted);
 }
 
-bool N3DSMenu_IsinvertedStereoAvaiable(void)
+bool N3DSMenu_IsinvertedStereoAvailable(void)
 {
-    //TODO: find in which version the gsp module was updated for the last time to lower the system firm minumum version.
+    //TODO: find in which version the gsp module was updated for the last time to lower FIRM version requirements. 
     return N3DSMenu_CheckNotN2dsXl() && (osGetFirmVersion() == SYSTEM_VERSION(2, 58, 0)); 
     
 }

@@ -42,7 +42,7 @@ void N3DSMenu_ToggleSs3d(void);
 void N3DSMenu_TestBarrierPositions(void);
 void N3DSMenu_Ss3dCalibration(void);
 
-void N3DSMenu_InvertStereo(void);
-void N3DSMenu_StartupApplyinvertedStereo(void* arg);
-bool N3DSMenu_IsinvertedStereoAvaiable();
+void N3DSMenu_InvertStereo(bool state);
+void N3DSMenu_StartupApplyInvertedStereo(void* arg);
+bool N3DSMenu_IsinvertedStereoAvailable();
 void N3DSMenu_ToggleInvertStereo();
