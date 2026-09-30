@@ -35,11 +35,15 @@
 #include "utils.h"
 #include "csvc.h"
 
+#define FIRM_VERSION_11_17_0_50  0x0B110032u
+
 static char clkRateBuf[128 + 1];
 
 static QtmCalibrationData lastQtmCal = {0};
 static bool qtmCalRead = false;
-static bool isPrallaxInverted = false;
+bool isPrallaxInverted = false;
+
+static char parallaxInvertedStatus[128 + 1];
 
 Menu N3DSMenu = {
     "New 3DS menu",
@@ -49,7 +53,7 @@ Menu N3DSMenu = {
         { "Temporarily disable Super-Stable 3D", METHOD, .method = &N3DSMenu_ToggleSs3d, .visibility = &N3DSMenu_CheckNotN2dsXl },
         { "Test parallax barrier positions", METHOD, .method = &N3DSMenu_TestBarrierPositions, .visibility = &N3DSMenu_CheckNotN2dsXl },
         { "Super-Stable 3D calibration", METHOD, .method = &N3DSMenu_Ss3dCalibration, .visibility = &N3DSMenu_CheckNotN2dsXl },
-        { "Invert parallax barrier [Disabled]", METHOD, .method = &N3DSMenu_InvertParallax},
+        { parallaxInvertedStatus, METHOD, .method = &N3DSMenu_InvertParallax, .visibility = &N3DSMenu_IsInvertedParallaxAvaiable },
         {},
     }
 };
@@ -72,6 +76,7 @@ void N3DSMenu_UpdateStatus(void)
 
     N3DSMenu.items[0].title = L2CacheEnabled ? "Disable L2 cache" : "Enable L2 cache";
     sprintf(clkRateBuf, "Set clock rate to %luMHz", clkRate != 268 ? 268 : (u32)higherClkRate);
+    sprintf(parallaxInvertedStatus, "Invert parallax barrier %s", isPrallaxInverted ? "[Enabled]" : "[Disabled]");
 
     if (N3DSMenu_CheckNotN2dsXl())
     {
@@ -91,14 +96,13 @@ void N3DSMenu_UpdateStatus(void)
             item->title = "Temporarily disable Super-Stable 3D";
         else
             item->title = "Temporarily enable Super-Stable 3D";
-
-        MenuItem *item2 = &N3DSMenu.items[5];
-
-        if (!isPrallaxInverted)
-            item2->title = "Invert parallax barrier [Disabled]";
-        else
-            item2->title = "Invert parallax barrier [Enabled]";
     }
+
+    MenuItem *item2 = &N3DSMenu.items[5];
+    if (!isPrallaxInverted)
+        item2->title = "Invert parallax barrier [Disabled]";
+    else
+        item2->title = "Invert parallax barrier [Enabled]";
 }
 
 void N3DSMenu_ChangeClockRate(void)
@@ -303,10 +307,25 @@ void N3DSMenu_Ss3dCalibration(void)
 }
 
 
-// So this is a particular function ported on rosalina menu based on my ips patch found here: https://github.com/Ghibbi64/3DS-parallax-swap
-// I tought it would have been cool if it was avaiable as an option here
+/* So this is a particular function ported on rosalina menu based on my ips patch found here: https://github.com/Ghibbi64/3DS-parallax-swap
+In general it works by inverting the registry in this part of the gsp
+    0010c6bc 00 50 82 e5     str r5,[r2]
+    0010c6c0 00 00 81 e5     str r0,[r1]
+
+like this
+    0010c6bc 00 00 82 e5     str r0,[r2]
+    0010c6c0 00 50 81 e5     str r5,[r1]
+
+(in this patch you can notice only 2 bytes really changes so i only touch them)
+
+at that point r5 should contain the address for the next left eye framebuffer and r0 the address for the right one,
+so you just need to swap them the moment the module is going to copy them into the lcd registry
+(r2 for the left eye registry and r1 for the right eye registry).
+Only problem is that this memory address could change on older fw version so i need to lock it to last one.
+*/
+
 void N3DSMenu_InvertParallax(void){
-    N3DSMenu_UpdateStatus();
+    if(!N3DSMenu_IsInvertedParallaxAvaiable()) return;
 
     //memory editing taken from process_list.c
     Handle processHandle;
@@ -339,14 +358,32 @@ void N3DSMenu_InvertParallax(void){
                 *ptr_r = 0x00;
             }
 
-            if(R_SUCCEEDED(res))
-                svcUnmapProcessMemoryEx(CUR_PROCESS_HANDLE, codeDestAddress, codeTotalSize);
-
-            svcCloseHandle(processHandle);
+            svcUnmapProcessMemoryEx(CUR_PROCESS_HANDLE, codeDestAddress, codeTotalSize);
 
             isPrallaxInverted = !isPrallaxInverted;
         }
+        
+        svcCloseHandle(processHandle);
     }
 
     N3DSMenu_UpdateStatus();
+}
+
+void N3DSMenu_StartupApplyInvertedParallax(void* arg){
+
+    (void)arg;
+
+    // wait for gsp? maybe idk when it's actually allocated
+    Handle h;
+    while (R_FAILED(OpenProcessByName("gsp", &h)))
+        svcSleepThread(100 * 1000 * 1000LL);
+    svcCloseHandle(h);
+
+    isPrallaxInverted = !isPrallaxInverted;
+    N3DSMenu_InvertParallax();
+}
+
+bool N3DSMenu_IsInvertedParallaxAvaiable(){
+    u32 firmVersion = osGetFirmVersion();
+    return N3DSMenu_CheckNotN2dsXl() && firmVersion == FIRM_VERSION_11_17_0_50; //Sys 11.17.0-50
 }

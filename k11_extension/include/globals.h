@@ -164,6 +164,8 @@ typedef struct CfwInfo
     u8 autobootCtrAppmemtype;
 
     u16 launchedPath[80+1];
+
+    bool invertedParallax;
 } CfwInfo;
 
 extern CfwInfo cfwInfo;

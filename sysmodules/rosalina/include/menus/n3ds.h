@@ -30,6 +30,7 @@
 #include "menu.h"
 
 extern Menu N3DSMenu;
+extern bool isPrallaxInverted;
 
 bool N3DSMenu_CheckNotN2dsXl(void);
 
@@ -42,3 +43,5 @@ void N3DSMenu_TestBarrierPositions(void);
 void N3DSMenu_Ss3dCalibration(void);
 
 void N3DSMenu_InvertParallax(void);
+void N3DSMenu_StartupApplyInvertedParallax(void* arg);
+bool N3DSMenu_IsInvertedParallaxAvaiable();
