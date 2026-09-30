@@ -45,3 +45,4 @@ void N3DSMenu_Ss3dCalibration(void);
 void N3DSMenu_InvertParallax(void);
 void N3DSMenu_StartupApplyInvertedParallax(void* arg);
 bool N3DSMenu_IsInvertedParallaxAvaiable();
+void N3DSMenu_ToggleInvertParallax();
