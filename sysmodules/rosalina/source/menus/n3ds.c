@@ -342,19 +342,28 @@ void N3DSMenu_InvertStereo(void){
         res = svcMapProcessMemoryEx(CUR_PROCESS_HANDLE, codeDestAddress, processHandle, codeStartAddress, codeTotalSize, 0);
 
         if(R_SUCCEEDED(res)){
-            u8 *ptr_l = (u8 *)(codeDestAddress + (0x0010C6BD - codeStartAddress));
-            u8 *ptr_r = (u8 *)(codeDestAddress + (0x0010C6C1 - codeStartAddress));
+            u32 *instr_l = (u32 *)(codeDestAddress + (0x0010C6BC - codeStartAddress));
+            u32 *instr_r = (u32 *)(codeDestAddress + (0x0010C6C0 - codeStartAddress));
 
-            if(isStereoInverted){
-                //Apply the patch
-                *ptr_l = 0x00;
-                *ptr_r = 0x50;
+            // First check if the store instruction are really the one i want to patch
+            bool isOriginal = (*instr_l == 0xE5825000 && *instr_r == 0xE5810000);
+            bool isPatched  = (*instr_l == 0xE5820000 && *instr_r == 0xE5815000);
+            if(isOriginal || isPatched){
+                u8 *ptr_l = (u8 *)(codeDestAddress + (0x0010C6BD - codeStartAddress));
+                u8 *ptr_r = (u8 *)(codeDestAddress + (0x0010C6C1 - codeStartAddress));
+
+                if(isStereoInverted){
+                    //Apply the patch
+                    *ptr_l = 0x00;
+                    *ptr_r = 0x50;
+                }else{
+                    //Revert the patch
+                    *ptr_l = 0x50;
+                    *ptr_r = 0x00;
+                }
             }else{
-                //Revert the patch
-                *ptr_l = 0x50;
-                *ptr_r = 0x00;
+                isStereoInverted = !isStereoInverted;
             }
-
             svcUnmapProcessMemoryEx(CUR_PROCESS_HANDLE, codeDestAddress, codeTotalSize);
 
         }
